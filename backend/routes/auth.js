@@ -1,26 +1,20 @@
-// backend/routes/auth.js
 import express from "express";
 import pool from "../db.js";
 import Joi from "joi";
 
 const router = express.Router();
 
-/**
- * REGISTER
- * POST /api/auth/register
- * Expects body: { name, email, password }
- */
-
-// Validation schema for registration
 const registerSchema = Joi.object({
-  name: Joi.string().min(3).max(50).required(),   // matches frontend "name"
+  username: Joi.string().min(3).max(50).required(),
   email: Joi.string().email().required(),
-  password: Joi.string().min(4).required(),
+  password: Joi.string().min(6).required(),
+  first_name: Joi.string().min(1).max(100).required(),
+  last_name: Joi.string().min(1).max(100).required(),
+  phone_number: Joi.string().min(10).max(20).required(),
 });
 
 router.post("/register", async (req, res, next) => {
   try {
-    // 1) Validate input
     const { error, value } = registerSchema.validate(req.body, {
       abortEarly: false,
     });
@@ -32,34 +26,33 @@ router.post("/register", async (req, res, next) => {
       });
     }
 
-    const { name, email, password } = value;
+    const { username, email, password, first_name, last_name, phone_number } = value;
 
-    // 2) Check if email or username already exists
     const [existing] = await pool.query(
       "SELECT user_id FROM users WHERE email = ? OR username = ?",
-      [email, name]
+      [email, username]
     );
     if (existing.length > 0) {
       return res.status(409).json({ message: "User already exists" });
     }
 
-    // 🔴 For this project, store password as plain text in password_hash
     const plainPassword = password;
 
-    // 3) Insert user (username = name)
     const [result] = await pool.query(
       `
-      INSERT INTO users (username, email, password_hash, role)
-      VALUES (?, ?, ?, 'user')
+      INSERT INTO users (username, email, password_hash, first_name, last_name, phone_number, role)
+      VALUES (?, ?, ?, ?, ?, ?, 'user')
       `,
-      [name, email, plainPassword]
+      [username, email, plainPassword, first_name, last_name, phone_number]
     );
 
-    // 4) Optionally log them in right away
     const user = {
       id: result.insertId,
-      username: name,
+      username,
       email,
+      first_name,
+      last_name,
+      phone_number,
       role: "user",
     };
 
@@ -76,12 +69,6 @@ router.post("/register", async (req, res, next) => {
   }
 });
 
-/**
- * LOGIN
- * POST /api/auth/login
- * Expects body: { email, password }
- */
-
 const loginSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().min(4).required(),
@@ -89,7 +76,6 @@ const loginSchema = Joi.object({
 
 router.post("/login", async (req, res, next) => {
   try {
-    // 1) Validate input
     const { error, value } = loginSchema.validate(req.body);
     if (error) {
       return res.status(400).json({ message: "Invalid login data" });
@@ -97,7 +83,6 @@ router.post("/login", async (req, res, next) => {
 
     const { email, password } = value;
 
-    // 2) Lookup user by email
     const [rows] = await pool.query(
       "SELECT * FROM users WHERE email = ?",
       [email]
@@ -109,13 +94,11 @@ router.post("/login", async (req, res, next) => {
 
     const userRow = rows[0];
 
-    // 3) Compare plain text password with stored password_hash
     const match = password === userRow.password_hash;
     if (!match) {
       return res.status(401).json({ message: "Incorrect password" });
     }
 
-    // 4) Save user session
     const user = {
       id: userRow.user_id,
       username: userRow.username,
@@ -133,10 +116,14 @@ router.post("/login", async (req, res, next) => {
   }
 });
 
-/**
- * LOGOUT
- * POST /api/auth/logout
- */
+router.get("/me", (req, res) => {
+  if (req.session && req.session.user) {
+    res.json({ user: req.session.user });
+  } else {
+    res.status(401).json({ message: "Not authenticated" });
+  }
+});
+
 router.post("/logout", (req, res) => {
   if (req.session) {
     req.session.destroy(() => {

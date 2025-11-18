@@ -1,4 +1,3 @@
-// routes/listings.js
 import express from "express";
 import pool from "../db.js";
 import { requireLogin } from "../middleware/authRoles.js";
@@ -7,7 +6,6 @@ import Joi from "joi";
 
 const router = express.Router();
 
-// Joi schema that matches YOUR listings table
 const listingSchema = Joi.object({
   make: Joi.string().max(50).required(),
   model: Joi.string().max(50).required(),
@@ -21,13 +19,18 @@ const listingSchema = Joi.object({
   body_type: Joi.string().max(50).required(),
   vin: Joi.string().allow("").optional(),
   description: Joi.string().allow("").optional(),
+  main_photo_url: Joi.string().allow("", null).optional().custom((value, helpers) => {
+    if (!value || value.trim() === "") {
+      return value;
+    }
+    if (value.startsWith("http://") || value.startsWith("https://")) {
+      return value;
+    }
+    return helpers.error("string.pattern.base", { pattern: "must start with http:// or https://" });
+  }),
   status: Joi.string().valid("available", "sold", "pending").default("available"),
 });
 
-// ------------------------------------------------------
-// XML endpoint (keep BEFORE /:id)
-// GET /api/listings/xml/all
-// ------------------------------------------------------
 router.get("/xml/all", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
@@ -66,15 +69,12 @@ router.get("/xml/all", async (req, res, next) => {
   }
 });
 
-// ------------------------------------------------------
-// GET /api/listings  (list + filters)
-// Frontend sends: brand, body, priceMin, priceMax, q
-// ------------------------------------------------------
 router.get("/", async (req, res, next) => {
   try {
     const { brand, body, priceMin, priceMax, q } = req.query;
 
     let sql = `SELECT 
+                 listing_id,
                  listing_id AS id,
                  seller_id,
                  make,
@@ -85,7 +85,9 @@ router.get("/", async (req, res, next) => {
                  body_type,
                  vin,
                  description,
-                 status
+                 main_photo_url,
+                 status,
+                 created_at
                FROM listings
                WHERE 1=1`;
     const params = [];
@@ -116,23 +118,56 @@ router.get("/", async (req, res, next) => {
       params.push(pattern, pattern, pattern);
     }
 
-    // Simple version: return all rows (your hook can compute total)
-    const [rows] = await pool.query(sql, params);
+    const sortBy = req.query.sortBy || "newest";
+    switch (sortBy) {
+      case "price_high":
+        sql += " ORDER BY price DESC";
+        break;
+      case "price_low":
+        sql += " ORDER BY price ASC";
+        break;
+      case "newest":
+      default:
+        sql += " ORDER BY listing_id DESC";
+        break;
+    }
+
+    let rows;
+    try {
+      [rows] = await pool.query(sql, params);
+    } catch (queryErr) {
+      console.error("[Listings API] Query failed, trying simpler query:", queryErr.message);
+      try {
+        [rows] = await pool.query("SELECT * FROM listings LIMIT 100");
+        console.log("[Listings API] Using SELECT * query instead");
+      } catch (simpleErr) {
+        console.error("[Listings API] Simple query also failed:", simpleErr.message);
+        throw queryErr;
+      }
+    }
+    
+    console.log(`[Listings API] Query executed successfully`);
+    console.log(`[Listings API] Found ${rows.length} listings`);
+    
+    if (rows.length === 0) {
+      console.log(`[Listings API] No listings found. Database may be empty.`);
+    }
+    
     res.json(rows);
   } catch (err) {
+    console.error("[Listings API] Error:", err.code, err.message);
+    console.error("[Listings API] SQL Error:", err.sqlMessage);
     next(err);
   }
 });
 
-// ------------------------------------------------------
-// GET /api/listings/:id  (single listing)
-// ------------------------------------------------------
 router.get("/:id", async (req, res, next) => {
   try {
     const listingId = req.params.id;
 
     const [rows] = await pool.query(
       `SELECT 
+         listing_id,
          listing_id AS id,
          seller_id,
          make,
@@ -143,7 +178,9 @@ router.get("/:id", async (req, res, next) => {
          body_type,
          vin,
          description,
-         status
+         main_photo_url,
+         status,
+         created_at
        FROM listings
        WHERE listing_id = ?`,
       [listingId]
@@ -159,10 +196,6 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
-// ------------------------------------------------------
-// POST /api/listings  (create listing)
-// Requires login; seller_id = current user
-// ------------------------------------------------------
 router.post(
   "/",
   requireLogin,
@@ -170,12 +203,12 @@ router.post(
   async (req, res, next) => {
     try {
       const data = req.validatedBody;
-      const sellerId = req.session.user.id; // users.user_id
+      const sellerId = req.session.user.id;
 
       const [result] = await pool.query(
         `INSERT INTO listings
-          (seller_id, make, model, year, price, mileage, body_type, vin, description, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (seller_id, make, model, year, price, mileage, body_type, vin, description, main_photo_url, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           sellerId,
           data.make,
@@ -186,13 +219,17 @@ router.post(
           data.body_type,
           data.vin || "",
           data.description || "",
+          data.main_photo_url || null,
           data.status || "available",
         ]
       );
 
+      console.log(`[Listings API] Created listing ID: ${result.insertId} by user ${sellerId}`);
+
       res.status(201).json({
         message: "Listing created",
         id: result.insertId,
+        listing_id: result.insertId,
       });
     } catch (err) {
       next(err);
@@ -200,10 +237,6 @@ router.post(
   }
 );
 
-// ------------------------------------------------------
-// PUT /api/listings/:id  (update listing)
-// Only owner OR admin may update
-// ------------------------------------------------------
 router.put(
   "/:id",
   requireLogin,
@@ -262,10 +295,6 @@ router.put(
   }
 );
 
-// ------------------------------------------------------
-// DELETE /api/listings/:id
-// Only owner OR admin may delete
-// ------------------------------------------------------
 router.delete("/:id", requireLogin, async (req, res, next) => {
   try {
     const listingId = req.params.id;

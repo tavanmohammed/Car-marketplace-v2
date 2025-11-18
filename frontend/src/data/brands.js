@@ -1,7 +1,3 @@
-// src/data/brands.js
-// Unified car data for frontend demos — compatible with Home.jsx and Buy.jsx
-// Later you’ll replace these arrays with SQL data fetched from your backend.
-
 export const CONDITIONS = ["Used", "New", "Certified Pre-Owned"];
 
 export const BRANDS = [
@@ -9,7 +5,6 @@ export const BRANDS = [
   "Honda", "Hyundai", "Kia", "Nissan", "Toyota", "Volkswagen"
 ];
 
-// Home.jsx expects ALL_BRANDS to include "All Brands" at the top:
 export const ALL_BRANDS = ["All Brands", ...BRANDS];
 
 export const MODELS_BY_BRAND = {
@@ -31,6 +26,5 @@ export const BODY_STYLES = [
   "Minivan", "Pickup Truck", "Coupe", "Wagon"
 ];
 
-// Aliases (for backward compatibility)
 export const CAR_BRANDS = BRANDS;
 export const CAR_MODELS = MODELS_BY_BRAND;

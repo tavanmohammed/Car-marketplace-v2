@@ -1,24 +1,42 @@
-// backend/server.js
 import express from "express";
 import cors from "cors";
 import session from "express-session";
 import dotenv from "dotenv";
-
-import pool from "./db.js";          // ← your MySQL pool (must exist)
 import authRoutes from "./routes/auth.js";
+import listingsRoutes from "./routes/listings.js";
+import messagesRoutes from "./routes/messages.js";
+import exportRoutes from "./routes/export.js";
+import externalRoutes from "./routes/external.js";
+import webservicesRoutes from "./routes/webservices.js";
+import statsRoutes from "./routes/stats.js";
+import viewsRoutes from "./routes/views.js";
+import {
+  handleDatabaseError,
+  handleValidationError,
+  handleExternalAPIError,
+  handleGenericError,
+  handleNotFound,
+} from "./middleware/errorHandler.js";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// ---------- MIDDLEWARE ----------
 app.use(express.json());
 
 app.use(
   cors({
-    origin: "http://localhost:5173", // frontend
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
+        return callback(null, true);
+      }
+      callback(null, true);
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
@@ -30,148 +48,50 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: false, // set true if using HTTPS in prod
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000,
     },
   })
 );
 
-// ---------- ROUTES ----------
-
-// Simple health check
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok" });
+app.get("/api/health", async (req, res) => {
+  try {
+    const pool = (await import("./db.js")).default;
+    const [rows] = await pool.query("SELECT COUNT(*) as count FROM listings");
+    res.json({ 
+      status: "ok", 
+      timestamp: new Date().toISOString(),
+      service: "iWantCar API",
+      database: "connected",
+      listingsCount: rows[0]?.count || 0
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      status: "error", 
+      message: "Database connection failed",
+      error: err.message 
+    });
+  }
 });
 
-// AUTH routes (register / login / logout)
 app.use("/api/auth", authRoutes);
+app.use("/api/listings", listingsRoutes);
+app.use("/api/messages", messagesRoutes);
+app.use("/api/export", exportRoutes);
+app.use("/api/external", externalRoutes);
+app.use("/api/webservices", webservicesRoutes);
+app.use("/api/stats", statsRoutes);
+app.use("/api/views", viewsRoutes);
 
-// LISTINGS – list all cars with optional filters
-// GET /api/listings?brand=Toyota&body=Sedan&minPrice=5000&maxPrice=30000
-app.get("/api/listings", async (req, res, next) => {
-  try {
-    const { brand, body, minPrice, maxPrice } = req.query;
+app.use(handleValidationError);
+app.use(handleExternalAPIError);
+app.use(handleDatabaseError);
+app.use("/api", handleNotFound);
+app.use(handleGenericError);
 
-    const conditions = [];
-    const params = [];
-
-    if (brand) {
-      conditions.push("make = ?");
-      params.push(brand);
-    }
-    if (body) {
-      conditions.push("body_style = ?");
-      params.push(body);
-    }
-    if (minPrice) {
-      conditions.push("price >= ?");
-      params.push(Number(minPrice));
-    }
-    if (maxPrice) {
-      conditions.push("price <= ?");
-      params.push(Number(maxPrice));
-    }
-
-    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-
-    const [rows] = await pool.query(
-      `
-      SELECT 
-        listing_id,
-        year,
-        make,
-        model,
-        trim,
-        price,
-        mileage_km,
-        city,
-        province,
-        main_photo_url,
-        seller_id
-      FROM listings
-      ${where}
-      ORDER BY created_at DESC
-      `,
-      params
-    );
-
-    res.json(rows);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// SINGLE LISTING – detail page
-// GET /api/listings/:id
-app.get("/api/listings/:id", async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    const [rows] = await pool.query(
-      `
-      SELECT 
-        l.*,
-        u.username AS seller_name,
-        u.email    AS seller_email
-      FROM listings l
-      JOIN users u ON l.seller_id = u.user_id
-      WHERE l.listing_id = ?
-      `,
-      [id]
-    );
-
-    if (rows.length === 0) {
-      return res.status(404).json({ message: "Listing not found" });
-    }
-
-    res.json(rows[0]);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// TOP SELLERS – simple example (adjust table/columns to your schema)
-app.get("/api/sellers/top", async (req, res, next) => {
-  try {
-    // Example using a seller_ratings table (change to match your DB)
-    const [rows] = await pool.query(
-      `
-      SELECT 
-        u.user_id,
-        u.username,
-        AVG(r.rating)   AS avg_rating,
-        COUNT(r.rating) AS rating_count
-      FROM seller_ratings r
-      JOIN users u ON r.seller_id = u.user_id
-      GROUP BY u.user_id, u.username
-      HAVING rating_count >= 1
-      ORDER BY avg_rating DESC, rating_count DESC
-      LIMIT 10
-      `
-    );
-
-    res.json(rows);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ---------- ERROR HANDLERS ----------
-
-// 404 for unknown API routes
-app.use("/api", (req, res) => {
-  res.status(404).json({ message: "API route not found" });
-});
-
-// Generic error handler
-app.use((err, req, res, next) => {
-  console.error("Server error:", err);
-  if (res.headersSent) return next(err);
-  res.status(500).json({ message: "Internal server error" });
-});
-
-// ---------- START SERVER ----------
 app.listen(PORT, () => {
-  console.log(`Backend listening on http://localhost:${PORT}`);
+  console.log(`🚀 Backend server listening on http://localhost:${PORT}`);
+  console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`🔐 Environment: ${process.env.NODE_ENV || "development"}`);
 });
-

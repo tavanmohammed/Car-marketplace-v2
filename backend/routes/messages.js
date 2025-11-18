@@ -1,21 +1,12 @@
-// routes/messages.js
 import express from "express";
 import pool from "../db.js";
+import Joi from "joi";
 import { requireLogin } from "../middleware/authRoles.js";
 import { validateBody } from "../middleware/validate.js";
 import { messageSchema } from "../schemas/messageSchema.js";
 
 const router = express.Router();
 
-/**
- * POST /api/messages/send
- * Body (validated by Joi messageSchema):
- * {
- *   receiver_id: number,
- *   listing_id: number | null,
- *   message_text: string
- * }
- */
 router.post(
   "/send",
   requireLogin,
@@ -38,10 +29,6 @@ router.post(
   }
 );
 
-/**
- * GET /api/messages/inbox
- * All messages where I am the receiver
- */
 router.get("/inbox", requireLogin, async (req, res, next) => {
   try {
     const myId = req.session.user.id;
@@ -66,10 +53,6 @@ router.get("/inbox", requireLogin, async (req, res, next) => {
   }
 });
 
-/**
- * GET /api/messages/sent
- * All messages where I am the sender
- */
 router.get("/sent", requireLogin, async (req, res, next) => {
   try {
     const myId = req.session.user.id;
@@ -94,10 +77,6 @@ router.get("/sent", requireLogin, async (req, res, next) => {
   }
 });
 
-/**
- * GET /api/messages/thread/:otherUserId
- * Full conversation between me and someone else
- */
 router.get("/thread/:otherUserId", requireLogin, async (req, res, next) => {
   try {
     const myId = req.session.user.id;
@@ -126,5 +105,79 @@ router.get("/thread/:otherUserId", requireLogin, async (req, res, next) => {
   }
 });
 
-// 🔴 THIS LINE FIXES YOUR ERROR
+router.put(
+  "/:id",
+  requireLogin,
+  validateBody(
+    Joi.object({
+      message_text: Joi.string().min(1).max(1000).required(),
+    })
+  ),
+  async (req, res, next) => {
+    try {
+      const messageId = parseInt(req.params.id, 10);
+      const userId = req.session.user.id;
+      const { message_text } = req.validatedBody;
+
+      const [rows] = await pool.query(
+        "SELECT sender_id FROM messages WHERE id = ?",
+        [messageId]
+      );
+
+      if (rows.length === 0) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      if (rows[0].sender_id !== userId && req.session.user.role !== "admin") {
+        return res
+          .status(403)
+          .json({ message: "Not allowed to update this message" });
+      }
+
+      await pool.query(
+        "UPDATE messages SET message_text = ? WHERE id = ?",
+        [message_text, messageId]
+      );
+
+      res.json({ message: "Message updated" });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.delete("/:id", requireLogin, async (req, res, next) => {
+  try {
+    const messageId = parseInt(req.params.id, 10);
+    const userId = req.session.user.id;
+    const isAdmin = req.session.user.role === "admin";
+
+    const [rows] = await pool.query(
+      "SELECT sender_id, receiver_id FROM messages WHERE id = ?",
+      [messageId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    const message = rows[0];
+    const canDelete =
+      isAdmin ||
+      message.sender_id === userId ||
+      message.receiver_id === userId;
+
+    if (!canDelete) {
+      return res
+        .status(403)
+        .json({ message: "Not allowed to delete this message" });
+    }
+
+    await pool.query("DELETE FROM messages WHERE id = ?", [messageId]);
+    res.json({ message: "Message deleted" });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

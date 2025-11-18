@@ -1,222 +1,181 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
+import { fetchListing } from "../utils/api.js";
+import { getDirectImageUrl } from "../utils/imageUrl.js";
 
 export default function CarDetail() {
-  const { id } = useParams();          // 👈 MUST be "id"
+  const { id } = useParams();
   const [car, setCar] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadCar() {
+      if (!id) return;
+      
       try {
         setLoading(true);
-        const res = await fetch(`http://localhost:4000/api/listings/${id}`);
-        if (!res.ok) throw new Error("Failed to load listing");
-        const data = await res.json();
+        setError("");
+        const data = await fetchListing(id);
         setCar(data);
       } catch (e) {
-        setErr(e.message || "Unable to load listing");
+        console.error("Error loading car:", e);
+        setError(e.message || "Unable to load listing");
       } finally {
         setLoading(false);
       }
     }
-    if (id !== undefined) {
-      loadCar();
-    }
+    
+    loadCar();
   }, [id]);
-
-  // ...rest of the component
-
-
-
-
-
-  async function handleSendMessage(e) {
-    e.preventDefault();
-    setSentMsg("");
-    if (!message.trim()) return;
-
-    // TODO: hook to real backend later (e.g. POST /api/messages)
-    try {
-      // Placeholder: simulate success
-      // const res = await fetch("http://localhost:4000/api/messages", { ... });
-      // if (!res.ok) throw new Error("Failed to send message");
-      setSentMsg("Your message has been sent to the seller.");
-      setMessage("");
-    } catch (e) {
-      setSentMsg(e.message || "Could not send message.");
-    }
-  }
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <p>Loading car details...</p>
+      <div className="min-h-screen bg-zinc-50 py-12">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-12">
+            <p className="text-zinc-600 text-lg">Loading car details...</p>
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (err || !car) {
+  if (error || !car) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <p className="text-red-600">{err || "Listing not found."}</p>
+      <div className="min-h-screen bg-zinc-50 py-12">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-12">
+            <p className="text-red-600 text-lg mb-4">{error || "Listing not found."}</p>
+            <Link
+              to="/browse"
+              className="text-yellow-600 hover:text-yellow-700 font-medium"
+            >
+              ← Back to Browse
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
 
-  const {
-    year,
-    make,
-    model,
-    trim,
-    price,
-    city,
-    province,
-    mileage_km,
-    fuel_type,
-    transmission,
-    body_style,
-    exterior_color,
-    interior_color,
-    doors,
-    seller_name,
-  } = car;
-
-  const title = `${year} ${make} ${model}${trim ? " " + trim : ""}`;
+  const title = `${car.year || ""} ${car.make || ""} ${car.model || ""}`.trim();
+  const price = car.price ? parseFloat(car.price) : 0;
+  const mileage = car.mileage || 0;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 grid gap-8 md:grid-cols-[2fr,1fr]">
-      {/* LEFT: photos + overview */}
-      <div>
-        {/* Main photo */}
-        <div className="aspect-[4/3] overflow-hidden rounded-xl bg-zinc-100">
-          <img
-            src={car.main_photo_url}
-            alt={title}
-            className="h-full w-full object-cover"
-          />
-        </div>
+    <div className="h-screen bg-zinc-50 flex flex-col overflow-hidden">
+      <div className="mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8 flex-1 flex flex-col py-4">
+        {/* Back Button - Compact */}
+        <Link
+          to="/browse"
+          className="inline-flex items-center text-xs text-zinc-600 hover:text-zinc-900 mb-3"
+        >
+          <span className="mr-1">←</span> Back
+        </Link>
 
-        {/* Title + price */}
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">{title}</h1>
-            <p className="text-sm text-zinc-600">
-              {city}, {province}
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-extrabold">
-              ${price?.toLocaleString()}
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden flex-1 flex">
+          <div className="grid md:grid-cols-2 gap-6 p-6 w-full">
+            {/* Left Column - Car Image */}
+            <div className="flex items-center justify-center">
+              <div className="w-full h-full max-h-[calc(100vh-8rem)] aspect-[4/3] bg-gradient-to-br from-zinc-100 to-zinc-200 rounded-lg overflow-hidden flex items-center justify-center">
+                {car.main_photo_url ? (
+                  <img
+                    src={getDirectImageUrl(car.main_photo_url) || car.main_photo_url}
+                    alt={title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback if image fails to load
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div className="text-center text-zinc-400" style={{ display: car.main_photo_url ? 'none' : 'flex', flexDirection: 'column' }}>
+                  <svg
+                    className="w-16 h-16 mx-auto mb-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                  <p className="text-sm font-medium">No Image</p>
+                </div>
+              </div>
             </div>
-            {/* You can add "Great deal" logic later */}
+
+            {/* Right Column - Car Information */}
+            <div className="flex flex-col justify-center overflow-y-auto">
+              {/* Title and Price */}
+              <div className="mb-4">
+                <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 mb-2">
+                  {title}
+                </h1>
+                <p className="text-2xl font-extrabold text-yellow-600">
+                  ${price.toLocaleString()}
+                </p>
+              </div>
+
+              {/* Car Specifications Grid */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <SpecCard label="Body Type" value={car.body_type || "N/A"} />
+                <SpecCard label="Mileage" value={`${mileage.toLocaleString()} km`} />
+                <SpecCard label="Year" value={car.year || "N/A"} />
+                {car.vin && <SpecCard label="VIN" value={car.vin} />}
+              </div>
+
+              {/* Description - Scrollable if too long */}
+              {car.description && (
+                <div className="mb-4 flex-1 min-h-0">
+                  <h2 className="text-lg font-bold text-zinc-900 mb-2">Description</h2>
+                  <div className="overflow-y-auto max-h-32">
+                    <p className="text-sm text-zinc-700 whitespace-pre-line leading-relaxed">
+                      {car.description}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Additional Info */}
+              <div className="border-t border-zinc-200 pt-3">
+                <div className="text-xs text-zinc-600 space-y-1">
+                  <p>
+                    <span className="font-semibold">ID:</span> {car.id || car.listing_id}
+                  </p>
+                  {car.created_at && (
+                    <p>
+                      <span className="font-semibold">Listed:</span>{" "}
+                      {new Date(car.created_at).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-
-        {/* Overview section */}
-        <section className="mt-6">
-          <h2 className="text-lg font-semibold mb-3">Overview</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-            {mileage_km != null && (
-              <Spec label="Mileage" value={`${mileage_km.toLocaleString()} km`} />
-            )}
-            {fuel_type && <Spec label="Fuel" value={fuel_type} />}
-            {transmission && <Spec label="Transmission" value={transmission} />}
-            {body_style && <Spec label="Body style" value={body_style} />}
-            {exterior_color && (
-              <Spec label="Exterior" value={exterior_color} />
-            )}
-            {interior_color && (
-              <Spec label="Interior" value={interior_color} />
-            )}
-            {doors && <Spec label="Doors" value={`${doors} doors`} />}
-          </div>
-        </section>
-
-        {/* Description */}
-        {car.description && (
-          <section className="mt-6">
-            <h2 className="text-lg font-semibold mb-2">Description</h2>
-            <p className="text-sm text-zinc-700 whitespace-pre-line">
-              {car.description}
-            </p>
-          </section>
-        )}
       </div>
-
-      {/* RIGHT: contact seller */}
-      <aside className="space-y-4">
-        <div className="rounded-xl border border-zinc-200 p-4 shadow-sm">
-          <h2 className="text-lg font-semibold mb-1">Request information</h2>
-          <p className="text-xs text-zinc-600 mb-3">
-            Message the seller about this {make} {model}.
-          </p>
-
-          {!isAuthed && (
-            <p className="mb-3 text-xs text-red-600">
-              Please sign in to contact the seller.
-            </p>
-          )}
-
-          <form onSubmit={handleSendMessage} className="space-y-3">
-            <div>
-              <label className="block text-xs text-zinc-600 mb-1">
-                Your name
-              </label>
-              <input
-                disabled
-                value={user?.username || user?.name || ""}
-                className="h-9 w-full rounded-md border border-zinc-200 px-2 text-sm bg-zinc-50"
-                placeholder="Sign in to auto-fill"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-zinc-600 mb-1">
-                Your message
-              </label>
-              <textarea
-                className="w-full min-h-[80px] rounded-md border border-zinc-200 px-2 py-1 text-sm outline-none"
-                placeholder="Hi, I'm interested in this vehicle. Is it still available?"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                disabled={!isAuthed}
-              />
-            </div>
-            {sentMsg && (
-              <p className="text-xs text-green-700">{sentMsg}</p>
-            )}
-            <button
-              type="submit"
-              disabled={!isAuthed}
-              className="w-full h-9 rounded-md bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-zinc-300"
-            >
-              Message seller
-            </button>
-          </form>
-        </div>
-
-        <div className="rounded-xl border border-zinc-200 p-4 text-sm text-zinc-700">
-          <p>
-            Seller:{" "}
-            <span className="font-semibold">
-              {seller_name || "Private seller"}
-            </span>
-          </p>
-          {/* later: add seller rating, number of reviews, etc. */}
-        </div>
-      </aside>
     </div>
   );
 }
 
-function Spec({ label, value }) {
+function SpecCard({ label, value }) {
   return (
-    <div>
-      <div className="text-[11px] uppercase tracking-wide text-zinc-500">
+    <div className="bg-zinc-50 rounded-lg p-3 border border-zinc-200">
+      <div className="text-[10px] uppercase tracking-wide text-zinc-500 mb-1 font-semibold">
         {label}
       </div>
-      <div className="text-sm font-medium text-zinc-900">{value}</div>
+      <div className="text-base font-bold text-zinc-900">{value}</div>
     </div>
   );
 }
+
