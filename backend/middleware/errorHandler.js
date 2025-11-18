@@ -1,6 +1,5 @@
 export function handleDatabaseError(err, req, res, next) {
   if (err.code === "ECONNREFUSED") {
-    console.error("Database connection refused:", err.message);
     return res.status(503).json({
       success: false,
       message: "Database connection failed",
@@ -10,7 +9,6 @@ export function handleDatabaseError(err, req, res, next) {
   }
 
   if (err.code === "PROTOCOL_CONNECTION_LOST") {
-    console.error("Database connection lost:", err.message);
     return res.status(503).json({
       success: false,
       message: "Database connection lost",
@@ -19,7 +17,6 @@ export function handleDatabaseError(err, req, res, next) {
   }
 
   if (err.code === "ER_ACCESS_DENIED_ERROR") {
-    console.error("Database access denied:", err.message);
     return res.status(503).json({
       success: false,
       message: "Database access denied",
@@ -29,7 +26,6 @@ export function handleDatabaseError(err, req, res, next) {
   }
 
   if (err.code === "ER_BAD_DB_ERROR") {
-    console.error("Database not found:", err.message);
     return res.status(503).json({
       success: false,
       message: "Database not found",
@@ -39,7 +35,6 @@ export function handleDatabaseError(err, req, res, next) {
   }
 
   if (err.code === "ER_NO_SUCH_TABLE") {
-    console.error("Database table error:", err.message);
     return res.status(500).json({
       success: false,
       message: "Database table not found",
@@ -49,15 +44,34 @@ export function handleDatabaseError(err, req, res, next) {
   }
 
   if (err.code === "ER_DUP_ENTRY") {
+    const errorMessage = err.sqlMessage || err.message || "";
+    let field = "field";
+    let userMessage = "This record already exists in the database.";
+
+    if (errorMessage.includes("vin") || errorMessage.toLowerCase().includes("vin")) {
+      field = "VIN";
+      userMessage = "A listing with this VIN number already exists. Since VIN has been removed from the form, this shouldn't happen. Please check your database for a UNIQUE constraint on VIN and remove it.";
+    } else if (errorMessage.includes("email")) {
+      field = "email";
+      userMessage = "This email is already registered. Please use a different email.";
+    } else if (errorMessage.includes("username")) {
+      field = "username";
+      userMessage = "This username is already taken. Please choose a different username.";
+    } else {
+      userMessage = `Duplicate entry error: ${errorMessage}. This might be caused by a UNIQUE constraint in your database. Please check your database schema or contact support.`;
+    }
+
     return res.status(409).json({
       success: false,
       message: "Duplicate entry",
-      error: "This record already exists in the database.",
+      error: userMessage,
+      field: field,
+      details: errorMessage,
+      sqlMessage: err.sqlMessage,
     });
   }
 
   if (err.code && err.code.startsWith("ER_")) {
-    console.error("MySQL error:", err.code, err.message);
     return res.status(400).json({
       success: false,
       message: "Database error",
@@ -67,7 +81,6 @@ export function handleDatabaseError(err, req, res, next) {
   }
 
   if (err.sqlMessage) {
-    console.error("SQL error:", err.sqlMessage);
     return res.status(500).json({
       success: false,
       message: "Database error",
@@ -95,7 +108,6 @@ export function handleValidationError(err, req, res, next) {
 
 export function handleExternalAPIError(err, req, res, next) {
   if (err.response) {
-    console.error("External API error:", err.response.status, err.response.data);
     return res.status(502).json({
       success: false,
       message: "External API error",
@@ -105,7 +117,6 @@ export function handleExternalAPIError(err, req, res, next) {
   }
 
   if (err.request) {
-    console.error("External API timeout:", err.message);
     return res.status(504).json({
       success: false,
       message: "External API timeout",
@@ -117,8 +128,6 @@ export function handleExternalAPIError(err, req, res, next) {
 }
 
 export function handleGenericError(err, req, res, next) {
-  console.error("Unhandled error:", err);
-
   const isDevelopment = process.env.NODE_ENV !== "production";
 
   res.status(err.status || 500).json({

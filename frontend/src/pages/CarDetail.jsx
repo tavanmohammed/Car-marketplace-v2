@@ -19,7 +19,6 @@ export default function CarDetail() {
         const data = await fetchListing(id);
         setCar(data);
       } catch (e) {
-        console.error("Error loading car:", e);
         setError(e.message || "Unable to load listing");
       } finally {
         setLoading(false);
@@ -66,7 +65,6 @@ export default function CarDetail() {
   return (
     <div className="h-screen bg-zinc-50 flex flex-col overflow-hidden">
       <div className="mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8 flex-1 flex flex-col py-4">
-        {/* Back Button - Compact */}
         <Link
           to="/browse"
           className="inline-flex items-center text-xs text-zinc-600 hover:text-zinc-900 mb-3"
@@ -76,7 +74,6 @@ export default function CarDetail() {
 
         <div className="bg-white rounded-xl shadow-lg overflow-hidden flex-1 flex">
           <div className="grid md:grid-cols-2 gap-6 p-6 w-full">
-            {/* Left Column - Car Image */}
             <div className="flex items-center justify-center">
               <div className="w-full h-full max-h-[calc(100vh-8rem)] aspect-[4/3] bg-gradient-to-br from-zinc-100 to-zinc-200 rounded-lg overflow-hidden flex items-center justify-center">
                 {car.main_photo_url ? (
@@ -85,7 +82,6 @@ export default function CarDetail() {
                     alt={title}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      // Fallback if image fails to load
                       e.target.style.display = 'none';
                       e.target.nextSibling.style.display = 'flex';
                     }}
@@ -110,9 +106,7 @@ export default function CarDetail() {
               </div>
             </div>
 
-            {/* Right Column - Car Information */}
             <div className="flex flex-col justify-center overflow-y-auto">
-              {/* Title and Price */}
               <div className="mb-4">
                 <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 mb-2">
                   {title}
@@ -122,7 +116,6 @@ export default function CarDetail() {
                 </p>
               </div>
 
-              {/* Car Specifications Grid */}
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <SpecCard label="Body Type" value={car.body_type || "N/A"} />
                 <SpecCard label="Mileage" value={`${mileage.toLocaleString()} km`} />
@@ -130,7 +123,6 @@ export default function CarDetail() {
                 {car.vin && <SpecCard label="VIN" value={car.vin} />}
               </div>
 
-              {/* Description - Scrollable if too long */}
               {car.description && (
                 <div className="mb-4 flex-1 min-h-0">
                   <h2 className="text-lg font-bold text-zinc-900 mb-2">Description</h2>
@@ -142,7 +134,6 @@ export default function CarDetail() {
                 </div>
               )}
 
-              {/* Additional Info */}
               <div className="border-t border-zinc-200 pt-3">
                 <div className="text-xs text-zinc-600 space-y-1">
                   <p>

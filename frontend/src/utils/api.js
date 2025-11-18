@@ -1,52 +1,76 @@
 const API_BASE = "http://localhost:4000";
 
-export async function createListing(listingData) {
-  const res = await fetch(`${API_BASE}/api/listings`, {
-    method: "POST",
+async function apiRequest(endpoint, options = {}) {
+  const { method = "GET", body, headers = {} } = options;
+  
+  const config = {
+    method,
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...headers,
     },
-    body: JSON.stringify(listingData),
-  });
+  };
 
-  if (!res.ok) {
-    let errorMessage = `Failed to create listing (${res.status})`;
-    try {
-      const data = await res.json();
-      if (data?.message) errorMessage = data.message;
-      if (data?.details) errorMessage = data.details.join(", ");
-    } catch (_) {}
-    throw new Error(errorMessage);
+  if (body) {
+    config.body = JSON.stringify(body);
   }
 
-  return await res.json();
+  try {
+    const res = await fetch(`${API_BASE}${endpoint}`, config);
+
+    if (!res.ok) {
+      let errorMessage = `Request failed (${res.status})`;
+      try {
+        const data = await res.json();
+        if (data?.error) errorMessage = data.error;
+        else if (data?.message) errorMessage = data.message;
+        else if (data?.details) errorMessage = Array.isArray(data.details) ? data.details.join(", ") : data.details;
+      } catch (_) {}
+      throw new Error(errorMessage);
+    }
+
+    return await res.json();
+  } catch (err) {
+    if (err.message.includes("fetch") || err.message.includes("Failed to fetch")) {
+      throw new Error("Cannot connect to server. Please make sure the backend is running on port 4000.");
+    }
+    throw err;
+  }
+}
+
+export async function createListing(listingData) {
+  return apiRequest("/api/listings", {
+    method: "POST",
+    body: listingData,
+  });
 }
 
 export async function fetchListing(id) {
-  const res = await fetch(`${API_BASE}/api/listings/${id}`, {
-    credentials: "include",
-  });
-
-  if (!res.ok) {
-    if (res.status === 404) {
+  try {
+    return await apiRequest(`/api/listings/${id}`);
+  } catch (err) {
+    if (err.message.includes("404") || err.message.includes("not found")) {
       throw new Error("Listing not found");
     }
-    throw new Error("Failed to load listing");
+    throw err;
   }
-
-  return await res.json();
 }
 
 export async function fetchListings(params = {}) {
   const queryString = new URLSearchParams(params).toString();
-  const res = await fetch(`${API_BASE}/api/listings?${queryString}`, {
-    credentials: "include",
-  });
+  const endpoint = queryString ? `/api/listings?${queryString}` : "/api/listings";
+  return apiRequest(endpoint);
+}
 
-  if (!res.ok) {
-    throw new Error("Failed to load listings");
-  }
+export async function fetchPriceRanges() {
+  return apiRequest("/api/stats/price-ranges");
+}
 
-  return await res.json();
+export async function fetchListingsByBrand() {
+  return apiRequest("/api/stats/listings-by-brand");
+}
+
+export async function fetchVINData(vin) {
+  return apiRequest(`/api/external/car-data/${encodeURIComponent(vin)}`);
 }

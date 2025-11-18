@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import PriceRangeChart from "../components/PriceRangeChart.jsx";
 import sedanImg from "../assets/sedan.png";
 import suvImg from "../assets/suv.jpg";
 import pickupImg from "../assets/pickup.jpg";
@@ -81,7 +82,7 @@ export default function Home() {
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-20">
             {bodyTypes.map((type, index) => (
               <Link
                 key={type.value}
@@ -105,6 +106,20 @@ export default function Home() {
                 </div>
               </Link>
             ))}
+          </div>
+
+          <div className="mt-16">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl md:text-5xl font-bold text-zinc-900 mb-4">
+                Price Distribution
+              </h2>
+              <p className="text-lg text-zinc-600 max-w-2xl mx-auto">
+                See how many cars are available in each price range
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
+              <PriceRangeChart />
+            </div>
           </div>
         </div>
       </div>

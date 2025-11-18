@@ -85,29 +85,16 @@ router.get("/users/activity", optionalAuth, async (req, res, next) => {
        LIMIT 10`
     );
 
-    const [messageActivity] = await pool.query(
-      `SELECT 
-         DATE(sent_at) AS date,
-         COUNT(*) AS message_count
-       FROM messages
-       WHERE sent_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-       GROUP BY DATE(sent_at)
-       ORDER BY date DESC
-       LIMIT 30`
-    );
-
     const jsonResponse = {
       success: true,
       generatedAt: new Date().toISOString(),
       data: {
         recentListings: recentListings,
         topSellers: topSellers,
-        messageActivity: messageActivity,
       },
       summary: {
         recentListingsCount: recentListings.length,
         topSellersCount: topSellers.length,
-        messageActivityDays: messageActivity.length,
       },
     };
 

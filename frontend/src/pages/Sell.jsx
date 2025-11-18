@@ -1,19 +1,17 @@
-import React, { useState, useMemo } from "react";
-import { BRANDS, MODELS_BY_BRAND, BODY_STYLES } from "../data/brands.js";
+import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { validateYear, validatePrice, validateMileage, validateImageUrl, validateRequiredFields } from "../utils/validation.js";
 import { createListing } from "../utils/api.js";
 import FormSection from "../components/FormSection.jsx";
 
 export default function Sell() {
-  const { user } = useAuth();
+  const { user, userRole, isAdmin, isUser } = useAuth();
 
   const [form, setForm] = useState({
     brand: "",
     model: "",
     year: "",
     mileage: "",
-    vin: "",
     body_type: "",
     price: "",
     description: "",
@@ -24,11 +22,6 @@ export default function Sell() {
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
 
-  const models = useMemo(
-    () => (form.brand ? MODELS_BY_BRAND[form.brand] || [] : []),
-    [form.brand]
-  );
-
   function handleChange(e) {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
@@ -36,13 +29,12 @@ export default function Sell() {
 
   function buildPayload() {
     const payload = {
-      make: form.brand,
-      model: form.model,
+      make: form.brand.trim(),
+      model: form.model.trim(),
       year: Number(form.year),
       price: Number(form.price),
       mileage: Number(form.mileage),
-      body_type: form.body_type,
-      vin: form.vin || "",
+      body_type: form.body_type.trim(),
       description: form.description || "",
       status: "available",
     };
@@ -82,6 +74,10 @@ export default function Sell() {
       return "You must be logged in to create a listing.";
     }
 
+    if (userRole !== "user" && !isAdmin) {
+      return "Only registered users can create listings.";
+    }
+
     return null;
   }
 
@@ -104,9 +100,8 @@ export default function Sell() {
       setSuccess("Listing created successfully! Redirecting to browse...");
       setTimeout(() => {
         window.location.href = "/browse";
-      }, 2000);
+      }, 1500);
     } catch (err) {
-      console.error(err);
       setError(err.message || "Something went wrong while creating the listing.");
     } finally {
       setSubmitting(false);
@@ -155,37 +150,26 @@ export default function Sell() {
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="grid gap-1 text-sm">
                 Make*
-                <select
+                <input
+                  type="text"
                   name="brand"
                   value={form.brand}
                   onChange={handleChange}
+                  placeholder="e.g. Toyota, Honda, Audi"
                   className="h-10 rounded-md border border-zinc-300 px-2 outline-none focus:border-yellow-400"
-                >
-                  <option value="">Select</option>
-                  {BRANDS.map((b) => (
-                    <option key={b} value={b}>
-                      {b}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
 
               <label className="grid gap-1 text-sm">
                 Model*
-                <select
+                <input
+                  type="text"
                   name="model"
                   value={form.model}
                   onChange={handleChange}
-                  disabled={!form.brand}
-                  className="h-10 rounded-md border border-zinc-300 px-2 outline-none focus:border-yellow-400 disabled:bg-zinc-100"
-                >
-                  <option value="">Select</option>
-                  {models.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="e.g. Camry, Civic, Q5"
+                  className="h-10 rounded-md border border-zinc-300 px-2 outline-none focus:border-yellow-400"
+                />
               </label>
 
               <label className="grid gap-1 text-sm">
@@ -200,22 +184,17 @@ export default function Sell() {
                 />
               </label>
 
-              <label className="grid gap-1 text-sm">
-                Body Type*
-                <select
-                  name="body_type"
-                  value={form.body_type}
-                  onChange={handleChange}
-                  className="h-10 rounded-md border border-zinc-300 px-2 outline-none focus:border-yellow-400"
-                >
-                  <option value="">Select</option>
-                  {BODY_STYLES.map((b) => (
-                    <option key={b} value={b}>
-                      {b}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  <label className="grid gap-1 text-sm">
+                    Body Type*
+                    <input
+                      type="text"
+                      name="body_type"
+                      value={form.body_type}
+                      onChange={handleChange}
+                      placeholder="e.g. Sedan, SUV, Hatchback, Truck"
+                      className="h-10 rounded-md border border-zinc-300 px-2 outline-none focus:border-yellow-400"
+                    />
+                  </label>
 
               <label className="grid gap-1 text-sm">
                 Mileage (km)*
@@ -237,17 +216,6 @@ export default function Sell() {
                   value={form.price}
                   onChange={handleChange}
                   placeholder="e.g. 18999"
-                  className="h-10 rounded-md border border-zinc-300 px-2 outline-none focus:border-yellow-400"
-                />
-              </label>
-
-              <label className="grid gap-1 text-sm">
-                VIN (Optional)
-                <input
-                  name="vin"
-                  value={form.vin}
-                  onChange={handleChange}
-                  placeholder="1HGCM82633A004352"
                   className="h-10 rounded-md border border-zinc-300 px-2 outline-none focus:border-yellow-400"
                 />
               </label>

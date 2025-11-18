@@ -21,7 +21,6 @@ export function AuthProvider({ children }) {
           }
         }
       } catch (err) {
-        console.error("Session check failed:", err);
       }
     }
     checkSession();
@@ -75,7 +74,6 @@ export function AuthProvider({ children }) {
         credentials: "include",
       });
     } catch (err) {
-      console.error("Logout error:", err);
     } finally {
       setUser(null);
       setToken(null);
@@ -121,6 +119,11 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const userRole = user?.role || "guest";
+  const isAdmin = userRole === "admin";
+  const isUser = userRole === "user";
+  const isGuest = userRole === "guest";
+
   const value = useMemo(
     () => ({
       user,
@@ -129,8 +132,12 @@ export function AuthProvider({ children }) {
       login,
       logout,
       signup,
+      userRole,
+      isAdmin,
+      isUser,
+      isGuest,
     }),
-    [user, token]
+    [user, token, userRole, isAdmin, isUser, isGuest]
   );
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;

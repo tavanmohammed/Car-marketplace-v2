@@ -3,7 +3,19 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Navbar() {
-  const { user, isAuthed, logout } = useAuth();
+  const { user, isAuthed, userRole, isAdmin, logout } = useAuth();
+
+  const getRoleBadgeColor = (role) => {
+    if (role === "admin") return "bg-purple-100 text-purple-700";
+    if (role === "user") return "bg-blue-100 text-blue-700";
+    return "bg-zinc-100 text-zinc-700";
+  };
+
+  const getRoleLabel = (role) => {
+    if (role === "admin") return "Admin";
+    if (role === "user") return "User";
+    return "Guest";
+  };
 
   return (
     <nav className="bg-white border-b border-zinc-200">
@@ -21,7 +33,7 @@ export default function Navbar() {
             >
               Browse
             </Link>
-            {isAuthed && (
+            {(isAuthed && (isAdmin || userRole === "user")) && (
               <Link
                 to="/sell"
                 className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
@@ -31,8 +43,15 @@ export default function Navbar() {
             )}
             {isAuthed ? (
               <div className="flex items-center gap-3">
-                <span className="text-sm text-zinc-600">
+                <span className="text-sm font-medium text-zinc-900">
                   {user?.username || user?.email}
+                </span>
+                <span
+                  className={`px-2 py-1 rounded text-xs font-semibold ${getRoleBadgeColor(
+                    userRole
+                  )}`}
+                >
+                  {getRoleLabel(userRole)}
                 </span>
                 <button
                   onClick={logout}
@@ -42,12 +61,21 @@ export default function Navbar() {
                 </button>
               </div>
             ) : (
-              <Link
-                to="/signin"
-                className="rounded-md bg-yellow-400 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-yellow-500"
-              >
-                Login
-              </Link>
+              <div className="flex items-center gap-3">
+                <span
+                  className={`px-2 py-1 rounded text-xs font-semibold ${getRoleBadgeColor(
+                    "guest"
+                  )}`}
+                >
+                  Guest
+                </span>
+                <Link
+                  to="/signin"
+                  className="rounded-md bg-yellow-400 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-yellow-500"
+                >
+                  Login
+                </Link>
+              </div>
             )}
           </div>
         </div>

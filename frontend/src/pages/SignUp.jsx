@@ -24,7 +24,6 @@ export default function SignUp() {
     e.preventDefault();
     setMsg("");
 
-    // Validation
     if (
       !form.username ||
       !form.email ||

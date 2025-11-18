@@ -33,7 +33,6 @@ export default function Browse() {
       const data = await fetchListings(params);
       setListings(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("Error fetching listings:", err);
       if (err.message.includes("fetch") || err.message.includes("Failed to fetch")) {
         setMsg("Cannot connect to server. Please make sure the backend is running on port 4000.");
       } else {
@@ -58,9 +57,7 @@ export default function Browse() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-zinc-900 mb-8">Browse Cars</h1>
 
-        {/* Filters and Sort Section */}
         <div className="mb-8 space-y-4">
-          {/* Body Type Filter */}
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-2">
               Filter by Body Type
@@ -82,7 +79,6 @@ export default function Browse() {
             </div>
           </div>
 
-          {/* Sort by Price */}
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-2">
               Sort by Price
@@ -99,14 +95,12 @@ export default function Browse() {
           </div>
         </div>
 
-        {/* Error Message */}
         {msg && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {msg}
           </div>
         )}
 
-        {/* Listings Grid */}
         {loading ? (
           <div className="text-center py-12">
             <p className="text-zinc-600">Loading...</p>
@@ -134,7 +128,6 @@ export default function Browse() {
                         alt={`${listing.make || ""} ${listing.model || ""}`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          // Fallback if image fails to load
                           e.target.style.display = 'none';
                           e.target.nextSibling.style.display = 'flex';
                         }}

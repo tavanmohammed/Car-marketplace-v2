@@ -4,7 +4,6 @@ import session from "express-session";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth.js";
 import listingsRoutes from "./routes/listings.js";
-import messagesRoutes from "./routes/messages.js";
 import exportRoutes from "./routes/export.js";
 import externalRoutes from "./routes/external.js";
 import webservicesRoutes from "./routes/webservices.js";
@@ -58,26 +57,39 @@ app.use(
 app.get("/api/health", async (req, res) => {
   try {
     const pool = (await import("./db.js")).default;
-    const [rows] = await pool.query("SELECT COUNT(*) as count FROM listings");
+    
+    const [listingsCount] = await pool.query("SELECT COUNT(*) as count FROM listings");
+    const [usersCount] = await pool.query("SELECT COUNT(*) as count FROM users");
+    
+    const [sampleListings] = await pool.query("SELECT listing_id, make, model, seller_id FROM listings LIMIT 5");
+    const [sampleUsers] = await pool.query("SELECT user_id, username, email FROM users LIMIT 5");
+    
     res.json({ 
       status: "ok", 
       timestamp: new Date().toISOString(),
       service: "iWantCar API",
       database: "connected",
-      listingsCount: rows[0]?.count || 0
+      counts: {
+        listings: listingsCount[0]?.count || 0,
+        users: usersCount[0]?.count || 0,
+      },
+      sample: {
+        listings: sampleListings,
+        users: sampleUsers,
+      }
     });
   } catch (err) {
     res.status(500).json({ 
       status: "error", 
       message: "Database connection failed",
-      error: err.message 
+      error: err.message,
+      code: err.code
     });
   }
 });
 
 app.use("/api/auth", authRoutes);
 app.use("/api/listings", listingsRoutes);
-app.use("/api/messages", messagesRoutes);
 app.use("/api/export", exportRoutes);
 app.use("/api/external", externalRoutes);
 app.use("/api/webservices", webservicesRoutes);

@@ -17,7 +17,6 @@ const listingSchema = Joi.object({
   price: Joi.number().positive().required(),
   mileage: Joi.number().integer().min(0).required(),
   body_type: Joi.string().max(50).required(),
-  vin: Joi.string().allow("").optional(),
   description: Joi.string().allow("").optional(),
   main_photo_url: Joi.string().allow("", null).optional().custom((value, helpers) => {
     if (!value || value.trim() === "") {
@@ -132,31 +131,9 @@ router.get("/", async (req, res, next) => {
         break;
     }
 
-    let rows;
-    try {
-      [rows] = await pool.query(sql, params);
-    } catch (queryErr) {
-      console.error("[Listings API] Query failed, trying simpler query:", queryErr.message);
-      try {
-        [rows] = await pool.query("SELECT * FROM listings LIMIT 100");
-        console.log("[Listings API] Using SELECT * query instead");
-      } catch (simpleErr) {
-        console.error("[Listings API] Simple query also failed:", simpleErr.message);
-        throw queryErr;
-      }
-    }
-    
-    console.log(`[Listings API] Query executed successfully`);
-    console.log(`[Listings API] Found ${rows.length} listings`);
-    
-    if (rows.length === 0) {
-      console.log(`[Listings API] No listings found. Database may be empty.`);
-    }
-    
+    const [rows] = await pool.query(sql, params);
     res.json(rows);
   } catch (err) {
-    console.error("[Listings API] Error:", err.code, err.message);
-    console.error("[Listings API] SQL Error:", err.sqlMessage);
     next(err);
   }
 });
@@ -203,12 +180,16 @@ router.post(
   async (req, res, next) => {
     try {
       const data = req.validatedBody;
-      const sellerId = req.session.user.id;
+      const sellerId = parseInt(req.session.user.id, 10);
+      
+      if (isNaN(sellerId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
 
       const [result] = await pool.query(
         `INSERT INTO listings
-          (seller_id, make, model, year, price, mileage, body_type, vin, description, main_photo_url, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (seller_id, make, model, year, price, mileage, body_type, description, main_photo_url, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           sellerId,
           data.make,
@@ -217,14 +198,11 @@ router.post(
           data.price,
           data.mileage,
           data.body_type,
-          data.vin || "",
           data.description || "",
           data.main_photo_url || null,
           data.status || "available",
         ]
       );
-
-      console.log(`[Listings API] Created listing ID: ${result.insertId} by user ${sellerId}`);
 
       res.status(201).json({
         message: "Listing created",
@@ -270,7 +248,6 @@ router.put(
              price = ?,
              mileage = ?,
              body_type = ?,
-             vin = ?,
              description = ?,
              status = ?
          WHERE listing_id = ?`,
@@ -281,7 +258,6 @@ router.put(
           data.price,
           data.mileage,
           data.body_type,
-          data.vin || "",
           data.description || "",
           data.status || "available",
           listingId,

@@ -18,16 +18,9 @@ const pool = mysql.createPool(dbConfig);
 
 pool.getConnection()
   .then((connection) => {
-    console.log("✅ Database connected successfully");
     connection.release();
   })
   .catch((err) => {
-    console.error("❌ Database connection error:", err.message);
-    console.error("Please check:");
-    console.error("  1. MySQL server is running");
-    console.error("  2. Database exists:", dbConfig.database);
-    console.error("  3. User credentials in .env file");
-    console.error("  4. Password is correct (can be empty if no password set)");
   });
 
 export default pool;
