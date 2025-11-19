@@ -24,14 +24,26 @@ function convertImgurUrl(url) {
 }
 
 function convertGoogleDriveUrl(url) {
-  const fileMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (fileMatch) {
-    return `https://drive.google.com/uc?export=view&id=${fileMatch[1]}`;
+  let fileId = null;
+  
+  const fileDMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileDMatch) {
+    fileId = fileDMatch[1];
   }
   
-  const openMatch = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
-  if (openMatch) {
-    return `https://drive.google.com/uc?export=view&id=${openMatch[1]}`;
+  if (!fileId) {
+    const openMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (openMatch) {
+      fileId = openMatch[1];
+    }
+  }
+  
+  if (fileId) {
+    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+  }
+  
+  if (url.includes('drive.google.com/uc?export=view')) {
+    return url;
   }
   
   return url;
@@ -44,15 +56,37 @@ export function getDirectImageUrl(url) {
   
   let directUrl = url.trim();
   
-  if (directUrl.includes('imgur.com')) {
-    directUrl = convertImgurUrl(directUrl);
+  if (directUrl.startsWith('http://') || directUrl.startsWith('https://')) {
+    if (directUrl.includes('imgur.com')) {
+      directUrl = convertImgurUrl(directUrl);
+    }
+    if (directUrl.includes('drive.google.com')) {
+      directUrl = convertGoogleDriveUrl(directUrl);
+    }
+    return directUrl;
   }
   
-  if (directUrl.includes('drive.google.com')) {
-    directUrl = convertGoogleDriveUrl(directUrl);
+  if (directUrl.includes('backend/uploads/') || directUrl.includes('uploads/tucson')) {
+    const filename = directUrl.split('/').pop();
+    return `http://localhost:4000/uploads/${filename}`;
   }
   
-  return directUrl;
+  if (directUrl.startsWith('/uploads/')) {
+    return `http://localhost:4000${directUrl}`;
+  }
+  
+  if (directUrl.startsWith('uploads/')) {
+    return `http://localhost:4000/${directUrl}`;
+  }
+  
+  if (directUrl.includes('/')) {
+    if (directUrl.startsWith('/')) {
+      return `http://localhost:4000${directUrl}`;
+    }
+    return `http://localhost:4000/${directUrl}`;
+  }
+  
+  return `http://localhost:4000/uploads/${directUrl}`;
 }
 
 export function isValidImageHostingUrl(url) {

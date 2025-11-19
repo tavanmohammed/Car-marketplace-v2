@@ -18,15 +18,7 @@ const listingSchema = Joi.object({
   mileage: Joi.number().integer().min(0).required(),
   body_type: Joi.string().max(50).required(),
   description: Joi.string().allow("").optional(),
-  main_photo_url: Joi.string().allow("", null).optional().custom((value, helpers) => {
-    if (!value || value.trim() === "") {
-      return value;
-    }
-    if (value.startsWith("http://") || value.startsWith("https://")) {
-      return value;
-    }
-    return helpers.error("string.pattern.base", { pattern: "must start with http:// or https://" });
-  }),
+  main_photo_url: Joi.string().allow("", null).optional(),
   status: Joi.string().valid("available", "sold", "pending").default("available"),
 });
 

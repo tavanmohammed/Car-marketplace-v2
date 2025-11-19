@@ -61,6 +61,7 @@ export default function CarDetail() {
   const title = `${car.year || ""} ${car.make || ""} ${car.model || ""}`.trim();
   const price = car.price ? parseFloat(car.price) : 0;
   const mileage = car.mileage || 0;
+  const imageUrl = getDirectImageUrl(car.main_photo_url) || car.main_photo_url;
 
   return (
     <div className="h-screen bg-zinc-50 flex flex-col overflow-hidden">
@@ -77,15 +78,17 @@ export default function CarDetail() {
             <div className="flex items-center justify-center">
               <div className="w-full h-full max-h-[calc(100vh-8rem)] aspect-[4/3] bg-gradient-to-br from-zinc-100 to-zinc-200 rounded-lg overflow-hidden flex items-center justify-center">
                 {car.main_photo_url ? (
-                  <img
-                    src={getDirectImageUrl(car.main_photo_url) || car.main_photo_url}
-                    alt={title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
-                  />
+                  <>
+                    <img
+                      src={imageUrl}
+                      alt={title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  </>
                 ) : null}
                 <div className="text-center text-zinc-400" style={{ display: car.main_photo_url ? 'none' : 'flex', flexDirection: 'column' }}>
                   <svg

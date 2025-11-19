@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { validateYear, validatePrice, validateMileage, validateImageUrl, validateRequiredFields } from "../utils/validation.js";
-import { createListing } from "../utils/api.js";
+import { createListing, uploadImage } from "../utils/api.js";
 import FormSection from "../components/FormSection.jsx";
 
 export default function Sell() {
@@ -19,12 +19,43 @@ export default function Sell() {
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
+  const [previewUrl, setPreviewUrl] = useState("");
 
   function handleChange(e) {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
+  }
+
+  async function handleFileChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file.");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image size must be less than 5MB.");
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setError("");
+      const result = await uploadImage(file);
+      const imageUrl = `http://localhost:4000${result.imageUrl}`;
+      setForm((f) => ({ ...f, main_photo_url: result.imageUrl }));
+      setPreviewUrl(imageUrl);
+      setSuccess("Image uploaded successfully!");
+    } catch (err) {
+      setError(err.message || "Failed to upload image.");
+    } finally {
+      setUploading(false);
+    }
   }
 
   function buildPayload() {
@@ -184,17 +215,17 @@ export default function Sell() {
                 />
               </label>
 
-                  <label className="grid gap-1 text-sm">
-                    Body Type*
-                    <input
-                      type="text"
-                      name="body_type"
-                      value={form.body_type}
-                      onChange={handleChange}
-                      placeholder="e.g. Sedan, SUV, Hatchback, Truck"
-                      className="h-10 rounded-md border border-zinc-300 px-2 outline-none focus:border-yellow-400"
-                    />
-                  </label>
+              <label className="grid gap-1 text-sm">
+                Body Type*
+                <input
+                  type="text"
+                  name="body_type"
+                  value={form.body_type}
+                  onChange={handleChange}
+                  placeholder="e.g. Sedan, SUV, Hatchback, Truck"
+                  className="h-10 rounded-md border border-zinc-300 px-2 outline-none focus:border-yellow-400"
+                />
+              </label>
 
               <label className="grid gap-1 text-sm">
                 Mileage (km)*
@@ -234,28 +265,50 @@ export default function Sell() {
           </FormSection>
 
           <FormSection title="Car Image" optional>
-            <input
-              name="main_photo_url"
-              value={form.main_photo_url}
-              onChange={handleChange}
-              placeholder="https://example.com/car-image.jpg"
-              className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-yellow-400"
-            />
-            <p className="mt-1 text-xs text-zinc-500">
-              Enter a URL to an image of your car. Supports:
-              <br />• Imgur (gallery or direct URLs)
-              <br />• Google Drive (share links will be converted automatically)
-              <br />• Any other image hosting service
-            </p>
+            <div className="mt-2 space-y-3">
+              <label className="block">
+                <span className="text-sm font-medium text-zinc-700 mb-2 block">
+                  Upload Image File
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  disabled={uploading}
+                  className="block w-full text-sm text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-yellow-400 file:text-zinc-900 hover:file:bg-yellow-500 file:cursor-pointer disabled:opacity-50"
+                />
+              </label>
+              
+              {previewUrl && (
+                <div className="mt-3">
+                  <img
+                    src={previewUrl}
+                    alt="Preview"
+                    className="max-w-full h-48 object-cover rounded-lg border border-zinc-200"
+                  />
+                </div>
+              )}
+
+              <div className="text-xs text-zinc-500 pt-2 border-t border-zinc-200">
+                <p className="mb-2">Or enter an image URL:</p>
+                <input
+                  name="main_photo_url"
+                  value={form.main_photo_url}
+                  onChange={handleChange}
+                  placeholder="https://example.com/image.jpg"
+                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-yellow-400"
+                />
+              </div>
+            </div>
           </FormSection>
 
           <div className="pt-4">
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || uploading}
               className="w-full rounded-xl bg-yellow-400 px-6 py-3 font-semibold text-zinc-900 hover:bg-yellow-500 disabled:opacity-60 transition-colors"
             >
-              {submitting ? "Creating Listing..." : "Create Listing"}
+              {submitting ? "Creating Listing..." : uploading ? "Uploading Image..." : "Create Listing"}
             </button>
           </div>
         </form>

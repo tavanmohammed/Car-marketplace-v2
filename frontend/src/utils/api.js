@@ -74,3 +74,26 @@ export async function fetchListingsByBrand() {
 export async function fetchVINData(vin) {
   return apiRequest(`/api/external/car-data/${encodeURIComponent(vin)}`);
 }
+
+export async function uploadImage(file) {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const res = await fetch(`${API_BASE}/api/upload/image`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    let errorMessage = `Upload failed (${res.status})`;
+    try {
+      const data = await res.json();
+      if (data?.error) errorMessage = data.error;
+      else if (data?.message) errorMessage = data.message;
+    } catch (_) {}
+    throw new Error(errorMessage);
+  }
+
+  return await res.json();
+}
