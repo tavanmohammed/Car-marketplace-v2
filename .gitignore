@@ -5,4 +5,7 @@ backend/.env
 *.log
 dist/
 build/
+backend/uploads/*
+!backend/uploads/.gitkeep
+push.sh
 

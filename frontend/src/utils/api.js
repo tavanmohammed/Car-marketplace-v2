@@ -75,6 +75,19 @@ export async function fetchVINData(vin) {
   return apiRequest(`/api/external/car-data/${encodeURIComponent(vin)}`);
 }
 
+export async function updateListing(id, listingData) {
+  return apiRequest(`/api/listings/${id}`, {
+    method: "PUT",
+    body: listingData,
+  });
+}
+
+export async function deleteListing(id) {
+  return apiRequest(`/api/listings/${id}`, {
+    method: "DELETE",
+  });
+}
+
 export async function uploadImage(file) {
   const formData = new FormData();
   formData.append("image", file);

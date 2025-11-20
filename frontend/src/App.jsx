@@ -8,6 +8,7 @@ import SignUp from "./pages/SignUp.jsx";
 import Sell from "./pages/Sell.jsx";
 import CarDetail from "./pages/CarDetail.jsx";
 import ExternalAPIs from "./pages/ExternalAPIs.jsx";
+import AdminManage from "./pages/AdminManage.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 
 function NotFound() {
@@ -69,6 +70,14 @@ export default function App() {
               <ProtectedRoute requireRole="user">
                 <Sell />
               </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/manage"
+            element={
+              <AdminRoute>
+                <AdminManage />
+              </AdminRoute>
             }
           />
           <Route path="/404" element={<NotFound />} />

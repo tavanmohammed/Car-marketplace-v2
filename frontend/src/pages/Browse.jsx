@@ -147,6 +147,11 @@ export default function Browse() {
                     <div className="mt-4 text-sm text-zinc-600 space-y-1">
                       <p>Mileage: {listing.mileage || listing.mileage_km || "N/A"} km</p>
                       <p>Body Type: {listing.body_type || listing.body_style || "N/A"}</p>
+                      {(listing.seller_name || listing.seller_username) && (
+                        <p className="font-medium text-zinc-800">
+                          Seller: {listing.seller_name || listing.seller_username}
+                        </p>
+                      )}
                       {listing.city && <p>Location: {listing.city}</p>}
                     </div>
                   </div>

@@ -65,21 +65,34 @@ router.get("/", async (req, res, next) => {
     const { brand, body, priceMin, priceMax, q } = req.query;
 
     let sql = `SELECT 
-                 listing_id,
-                 listing_id AS id,
-                 seller_id,
-                 make,
-                 model,
-                 year,
-                 price,
-                 mileage,
-                 body_type,
-                 vin,
-                 description,
-                 main_photo_url,
-                 status,
-                 created_at
-               FROM listings
+                 l.listing_id,
+                 l.listing_id AS id,
+                 l.seller_id,
+                 l.make,
+                 l.model,
+                 l.year,
+                 l.price,
+                 l.mileage,
+                 l.body_type,
+                 l.vin,
+                 l.description,
+                 l.main_photo_url,
+                 l.status,
+                 l.created_at,
+                 u.username AS seller_username,
+                 u.first_name AS seller_first_name,
+                 u.last_name AS seller_last_name,
+                 CASE 
+                   WHEN u.first_name IS NOT NULL AND u.last_name IS NOT NULL 
+                   THEN CONCAT(u.first_name, ' ', u.last_name)
+                   WHEN u.first_name IS NOT NULL 
+                   THEN u.first_name
+                   WHEN u.last_name IS NOT NULL 
+                   THEN u.last_name
+                   ELSE u.username
+                 END AS seller_name
+               FROM listings l
+               LEFT JOIN users u ON l.seller_id = u.user_id
                WHERE 1=1`;
     const params = [];
 
@@ -136,22 +149,35 @@ router.get("/:id", async (req, res, next) => {
 
     const [rows] = await pool.query(
       `SELECT 
-         listing_id,
-         listing_id AS id,
-         seller_id,
-         make,
-         model,
-         year,
-         price,
-         mileage,
-         body_type,
-         vin,
-         description,
-         main_photo_url,
-         status,
-         created_at
-       FROM listings
-       WHERE listing_id = ?`,
+         l.listing_id,
+         l.listing_id AS id,
+         l.seller_id,
+         l.make,
+         l.model,
+         l.year,
+         l.price,
+         l.mileage,
+         l.body_type,
+         l.vin,
+         l.description,
+         l.main_photo_url,
+         l.status,
+         l.created_at,
+          u.username AS seller_username,
+          u.first_name AS seller_first_name,
+          u.last_name AS seller_last_name,
+          CASE 
+            WHEN u.first_name IS NOT NULL AND u.last_name IS NOT NULL 
+            THEN CONCAT(u.first_name, ' ', u.last_name)
+            WHEN u.first_name IS NOT NULL 
+            THEN u.first_name
+            WHEN u.last_name IS NOT NULL 
+            THEN u.last_name
+            ELSE u.username
+          END AS seller_name
+       FROM listings l
+       LEFT JOIN users u ON l.seller_id = u.user_id
+       WHERE l.listing_id = ?`,
       [listingId]
     );
 

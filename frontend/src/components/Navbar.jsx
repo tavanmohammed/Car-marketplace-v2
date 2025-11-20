@@ -41,6 +41,14 @@ export default function Navbar() {
                 Sell
               </Link>
             )}
+            {isAdmin && (
+              <Link
+                to="/admin/manage"
+                className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
+              >
+                Manage
+              </Link>
+            )}
             {isAuthed ? (
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-zinc-900">
